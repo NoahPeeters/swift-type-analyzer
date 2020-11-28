@@ -19,109 +19,110 @@ func traverseStructures(structures: [Structure], callback: (Structure) -> Void) 
 }
 
 
-struct SwiftType: CustomStringConvertible, Hashable, ExpressibleByStringLiteral {
+struct SwiftType: CustomStringConvertible, Hashable, Codable {
     let fullyQuallifiedName: [String]
+    let kind: Kind
     
-    init(fullyQuallifiedName: [String]) {
+    enum Kind: String, Hashable, Codable {
+        case `struct`
+        case `enum`
+        case `class`
+        case `protocol`
+        case `function`
+        case `typealias`
+        case genericTypeParam
+    }
+
+    init(fullyQuallifiedName: [String], kind: Kind) {
         self.fullyQuallifiedName = fullyQuallifiedName
+        self.kind = kind
     }
-    
-    init(stringLiteral value: StringLiteralType) {
-        self.init(fullyQuallifiedName: value.components(separatedBy: "."))
-    }
-    
+
     var description: String {
+        "\(name) (\(kind))"
+    }
+
+    var name: String {
         fullyQuallifiedName.joined(separator: ".")
     }
 }
 
-var definitions: [SwiftType: Structure.Kind] = [
-    "Swift.Bool": .primitive,
-    "Swift.Int": .primitive,
-    "Swift.String": .primitive,
-    "Swift.Optional": .buildIn,
-    "Swift.Array": .buildIn,
-]
 var usage: [SwiftType: Int] = [:]
 
 traverseStructures(structures: files.flatMap { $0.substructures ?? [] }) { structure in
+    guard let typeId = structure.typeId else {
+        return
+    }
+
     do {
-        guard let typeId = structure.typeId else {
-            return
-        }
-        let symbol: SwiftSymbol = try parseMangledSwiftSymbol(typeId.rawString)
         
-        let swiftTypes = symbol.extractSwiftTypes()
-        
-        switch structure.kind.isTypeDefinition {
-        case .typeDefinition:
-            guard let type = swiftTypes.first else {
-                fatalError("Missing type in type definition")
-            }
-            definitions[type] = structure.kind
-        case .typeUsage:
+        if structure.kind.isTypeDefinition == .typeUsage {
+            let symbol: SwiftSymbol = try parseMangledSwiftSymbol(typeId.rawString)
+            
+            let swiftTypes = symbol.extractSwiftTypes()
             for type in swiftTypes {
                 usage[type, default: 0] += 1
             }
-        case .other:
-            break
+            
         }
-    } catch {
-        print(error)
+    } catch {}
+}
+
+usage
+    .sorted(by: { $0.key.name < $1.key.name }  )
+    .forEach { (t, count) in
+        print("\(t) \(count)")
     }
-}
-
-func getKind(of swiftType: SwiftType) -> Structure.Kind {
-    if let kind = definitions[swiftType] {
-        return kind
-    } else {
-        fatalError("Unknown type \(swiftType)")
-    }
-}
-
-let usageByKind = Dictionary(usage.map { (getKind(of: $0), $1) }, uniquingKeysWith: +)
-
-
-usageByKind.sorted(by: { $0.1 > $1.1 }).forEach {
-    print("\($0.key): \($0.value)")
-}
 
 
 extension SwiftSymbol {
     func extractSwiftTypes() -> [SwiftType] {
         switch kind {
-        case .structure, .enum, .protocol, .class, .dependentGenericParamType:
-            let nameParts = recursivFlatMap(input: self, valueKeyPath: \.contents.name, recursiveKeyPath: \.children).compactMap { $0 }
-            return [SwiftType(fullyQuallifiedName: nameParts)]
+        case .identifier, .dependentGenericParamCount:
+            return []
+        case .emptyList, .firstElementMarker:
+            assert(children.count == 0)
+            return []
+        case .type, .typeMangling, .argumentTuple, .returnType, .tupleElement, .protocolList, .inOut, .metatype:
+            assert(children.count == 1)
+            return children[0].extractSwiftTypes()
+        case .typeList, .global, .tuple, .dependentGenericType, .dependentGenericSignature:
+            return children.flatMap { $0.extractSwiftTypes() }
+        case .dependentGenericParamType:
+            guard let name = contents.name else {
+                fatalError("Generic Type name missing")
+            }
+            return [SwiftType(fullyQuallifiedName: [name], kind: .genericTypeParam)]
+        case .structure:
+            return [SwiftType(fullyQuallifiedName: extractRecursiveName(), kind: .struct)]
+        case .class:
+            return [SwiftType(fullyQuallifiedName: extractRecursiveName(), kind: .class)]
+        case .enum:
+            return [SwiftType(fullyQuallifiedName: extractRecursiveName(), kind: .enum)]
+        case .protocol:
+            return [SwiftType(fullyQuallifiedName: extractRecursiveName(), kind: .protocol)]
+        case .typeAlias:
+            return [SwiftType(fullyQuallifiedName: extractRecursiveName(), kind: .typealias)]
+        case .functionType, .noEscapeFunctionType:
+            return [SwiftType(fullyQuallifiedName: ["<FUNCTION>"], kind: .function)] +
+                children.flatMap { $0.extractSwiftTypes() }
+        case .boundGenericEnum, .boundGenericClass, .boundGenericStructure, .boundGenericTypeAlias, .dependentGenericConformanceRequirement:
+            assert(children.count == 2)
+            return children[0].extractSwiftTypes() + children[1].extractSwiftTypes()
         default:
-            return extractSwiftTypesOfChildren()
+            fatalError("Unimplemented kind \(kind)")
         }
-//
-//        if let swiftType = extractSwiftType() {
-//            return [swiftType] + extractSwiftTypesOfChildren()
-//        } else {
-//            return extractSwiftTypesOfChildren()
-//        }
     }
     
-//    private func extractSwiftType() -> SwiftType? {
-//        switch kind {
-//        case .structure, .enum, .protocol, .class:
-//            let nameParts = recursivFlatMap(input: self, valueKeyPath: \.contents.name, recursiveKeyPath: \.children).compactMap { $0 }
-//            return SwiftType(fullyQuallifiedName: nameParts)
-//        default:
-//            return nil
-//        }
-//    }
-    
-    private func extractSwiftTypesOfChildren() -> [SwiftType] {
-        children.map { $0.extractSwiftTypes() }.reduce([], +)
+    private func extractRecursiveName() -> [String] {
+        return recursivFlatMap(input: self, valueKeyPath: \.contents.name, recursiveKeyPath: \.children).compactMap { $0 }
     }
-}
 
-func recursivFlatMap<Input, Output>(input: Input, valueKeyPath: KeyPath<Input, Output>, recursiveKeyPath: KeyPath<Input, [Input]>) -> [Output] {
-    [input[keyPath: valueKeyPath]] + input[keyPath: recursiveKeyPath].flatMap {
-        recursivFlatMap(input: $0, valueKeyPath: valueKeyPath, recursiveKeyPath: recursiveKeyPath)
+
+    private func recursivFlatMap<Input, Output>(input: Input, valueKeyPath: KeyPath<Input, Output>, recursiveKeyPath: KeyPath<Input, [Input]>) -> [Output] {
+        [input[keyPath: valueKeyPath]] + input[keyPath: recursiveKeyPath].flatMap {
+            recursivFlatMap(input: $0, valueKeyPath: valueKeyPath, recursiveKeyPath: recursiveKeyPath)
+        }
     }
 }
 
