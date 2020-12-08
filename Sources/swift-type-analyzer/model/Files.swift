@@ -48,9 +48,13 @@ public struct Structure: Decodable, WithSubstructures {
         
         case instanceFunction = "source.lang.swift.decl.function.method.instance"
         case staticFunction = "source.lang.swift.decl.function.method.static"
+        case classFunction = "source.lang.swift.decl.function.method.class"
+        case `subscript` = "source.lang.swift.decl.function.subscript"
         
         case marker = "source.lang.swift.syntaxtype.comment.mark"
         case `extension` = "source.lang.swift.decl.extension"
+
+        case `associatedtype` = "source.lang.swift.decl.associatedtype"
         
         public enum KindType {
             case typeDefinition
@@ -60,11 +64,11 @@ public struct Structure: Decodable, WithSubstructures {
         
         var isTypeDefinition: KindType {
             switch self {
-            case .marker, .extension, .enumCase:
+            case .marker, .extension, .enumCase, .associatedtype:
                 return .other
             case .primitive, .buildIn, .struct, .protocol, .class, .genericTypeParam, .typealias, .enum:
                 return .typeDefinition
-            case .staticVariable, .instanceVariable, .globalVariable, .localVariable, .enumElement, .instanceFunction, .staticFunction:
+            case .staticVariable, .instanceVariable, .globalVariable, .localVariable, .enumElement, .instanceFunction, .staticFunction, .subscript, .classFunction:
                 return .typeUsage
             }
         }
@@ -83,10 +87,3 @@ public struct Structure: Decodable, WithSubstructures {
     public var kind: Kind
     public var typeId: TypeID?
 }
-
-//s1a1bS2i_SStcD
-//s1a1bS2i_SbtcD
-//s1a1bS2iSg_SbtcD
-
-//s2aa1bS2iSg_SbtcD
-
