@@ -1,5 +1,7 @@
-
 output
+input/mail-ios.json
+input/flex-ios.json
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/xcode,macos,swift,swiftpackagemanager,swiftpm
 # Edit at https://www.toptal.com/developers/gitignore?templates=xcode,macos,swift,swiftpackagemanager,swiftpm

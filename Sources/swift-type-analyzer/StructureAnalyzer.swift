@@ -53,13 +53,13 @@ extension SwiftSymbol {
         switch kind {
         case .identifier, .dependentGenericParamCount, .tupleElementName:
             return []
-        case .emptyList, .firstElementMarker, .throwsAnnotation, .variadicMarker:
+        case .emptyList, .firstElementMarker, .throwsAnnotation, .variadicMarker, .errorType:
             assert(children.count == 0)
             return []
-        case .type, .typeMangling, .argumentTuple, .returnType, .protocolList, .inOut, .metatype, .dynamicSelf:
+        case .type, .typeMangling, .argumentTuple, .returnType, .inOut, .metatype, .dynamicSelf, .existentialMetatype:
             assert(children.count == 1)
             return children[0].extractSwiftTypes()
-        case .typeList, .global, .tuple, .dependentGenericType, .dependentGenericSignature, .dependentMemberType, .dependentAssociatedTypeRef, .tupleElement:
+        case .typeList, .global, .tuple, .dependentGenericType, .dependentGenericSignature, .dependentMemberType, .dependentAssociatedTypeRef, .dependentGenericLayoutRequirement, .tupleElement, .protocolList, .protocolListWithAnyObject, .protocolListWithClass:
             return children.flatMap { $0.extractSwiftTypes() }
         case .dependentGenericParamType:
             guard let name = contents.name else {

@@ -33,6 +33,10 @@ public struct SwiftType: CustomStringConvertible, Hashable, Codable {
     public var name: String {
         fullyQuallifiedName.joined(separator: ".")
     }
+
+    public var isBuildInType: Bool {
+        ["Swift", "Foundation"].contains(module)
+    }
 }
 
 extension SwiftType {

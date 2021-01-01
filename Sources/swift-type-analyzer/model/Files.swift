@@ -42,6 +42,7 @@ public struct Structure: Decodable, WithSubstructures {
         case instanceVariable = "source.lang.swift.decl.var.instance"
         case globalVariable = "source.lang.swift.decl.var.global"
         case localVariable = "source.lang.swift.decl.var.local"
+        case parameterVariable = "source.lang.swift.decl.var.parameter"
         
         case enumElement = "source.lang.swift.decl.enumelement"
         case enumCase = "source.lang.swift.decl.enumcase"
@@ -49,6 +50,7 @@ public struct Structure: Decodable, WithSubstructures {
         case instanceFunction = "source.lang.swift.decl.function.method.instance"
         case staticFunction = "source.lang.swift.decl.function.method.static"
         case classFunction = "source.lang.swift.decl.function.method.class"
+        case freeFunction = "source.lang.swift.decl.function.free"
         case `subscript` = "source.lang.swift.decl.function.subscript"
         
         case marker = "source.lang.swift.syntaxtype.comment.mark"
@@ -68,7 +70,7 @@ public struct Structure: Decodable, WithSubstructures {
                 return .other
             case .primitive, .buildIn, .struct, .protocol, .class, .genericTypeParam, .typealias, .enum:
                 return .typeDefinition
-            case .staticVariable, .instanceVariable, .globalVariable, .localVariable, .enumElement, .instanceFunction, .staticFunction, .subscript, .classFunction:
+            case .staticVariable, .instanceVariable, .globalVariable, .localVariable, .parameterVariable, .enumElement, .instanceFunction, .staticFunction, .subscript, .classFunction, .freeFunction:
                 return .typeUsage
             }
         }
